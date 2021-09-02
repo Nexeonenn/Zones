@@ -80,8 +80,8 @@ local plymeta = FindMetaTable("Player")
 function plymeta:GetCurrentZone(class)
     local c = zones.Cache[self][class or "___"]
     if c then return unpack(c) end
-    local z, id = zones.GetZoneAt(self:GetPos(), class)
 
+    local z, id = zones.GetZoneAt(self:GetPos(), class)
     zones.Cache[self][class or "___"] = {z, id}
 
     return z, id
@@ -103,7 +103,10 @@ function zones.GetZoneAt(pos, class)
         for k1, points in pairs(zone.points) do
             if zones.PointInPoly(pos, points) then
                 local z = points[1].z
-                if pos.z >= z and pos.z < z + zone.height[k1] then return zone, k end
+
+                if pos.z >= z and pos.z < z + zone.height[k1] then 
+					return zone, k 
+				end
             end
         end
     end
@@ -273,31 +276,17 @@ if SERVER then
         end
     end
 
-    local sync = false
-    local syncply
-
-    -- TODO: Rewrite.
     function zones.Sync(ply)
-        sync = true
-        syncply = ply
+		net.Start("zones_sync")
+		net.WriteTable(zones.List)
+
+		if (ply) then
+			net.Send(ply)
+		else
+			net.Broadcast()
+			zones.CreateZoneMapping()
+		end
     end
-
-    hook.Add("Tick", "zones_sync", function()
-        if sync then
-            net.Start("zones_sync")
-            net.WriteTable(zones.List)
-
-            if syncply then
-                net.Send(syncply)
-                syncply = nil
-            else
-                net.Broadcast()
-                zones.CreateZoneMapping()
-            end
-
-            sync = false
-        end
-    end)
 
     function zones.CreateZoneFromPoint(ent)
         local zone = {
