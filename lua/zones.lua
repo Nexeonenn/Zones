@@ -58,7 +58,7 @@ if zones then
         print("A new version of zones exists. Using version " .. version .. " instead of " .. zones.version)
     end
 else
-    print("Loaded zones " .. version)
+	MsgC(Color(15, 201, 145), "[Zones] ", color_white, "Version: " .. version, "\n")
 end
 
 zones = zones or {}
@@ -71,32 +71,32 @@ zones.Map = zones.Map or {}
 -- Registers a zone class which can then be created using weapon_zone_designator
 function zones.RegisterClass(name, color)
     zones.Classes[name] = color
-    MsgC(Color(15, 201, 145), "[Zones]", color, "Registered class: " .. name)
+    MsgC(Color(15, 201, 145), "[Zones] ", color, "Registered class: " .. name, "\n")
 end
 
-local plymeta = FindMetaTable("Player")
+do
+	local plymeta = FindMetaTable("Player")
 
---returns one of the zones a player is found in. Also returns that zone's ID. Class is optional to filter the search.
-function plymeta:GetCurrentZone(class)
-    local c = zones.Cache[self][class or "___"]
-    if c then return unpack(c) end
+	--returns one of the zones a player is found in. Also returns that zone's ID. Class is optional to filter the search.
+	function plymeta:GetCurrentZone(class)
+		local c = zones.Cache[self][class or "___"]
+		if c then return unpack(c) end
 
-    local z, id = zones.GetZoneAt(self:GetPos(), class)
-    zones.Cache[self][class or "___"] = {z, id}
+		local z, id = zones.GetZoneAt(self:GetPos(), class)
+		zones.Cache[self][class or "___"] = {z, id}
 
-    return z, id
-end
+		return z, id
+	end
 
---returns a table of zones the player is in. Class is optional to filter the search.
-function plymeta:GetCurrentZones(class)
-    return zones.GetZonesAt(self:GetPos(), class)
+	--returns a table of zones the player is in. Class is optional to filter the search.
+	function plymeta:GetCurrentZones(class)
+		return zones.GetZonesAt(self:GetPos(), class)
+	end
 end
 
 --works like above, except uses any point.
 function zones.GetZoneAt(pos, class)
-    local nearby = zones.GetNearbyZones(pos)
-
-    for k, zone in pairs(nearby) do
+    for k, zone in pairs(zones.List) do
         if class and class ~= zone.class then continue end
         if not pos:WithinAABox(zone.bounds.mins, zone.bounds.maxs) then continue end
 
@@ -117,9 +117,8 @@ end
 --works like above, except uses any point.
 function zones.GetZonesAt(pos, class)
     local tbl = {}
-    local nearby = zones.GetNearbyZones(pos)
 
-    for k, zone in pairs(nearby) do
+    for k, zone in pairs(zones.List) do
         if class and class ~= zone.class then continue end
         if not pos:WithinAABox(zone.bounds.mins, zone.bounds.maxs) then continue end
 
@@ -223,13 +222,6 @@ function zones.CreateZoneMapping()
             end
         end
     end
-end
-
-function zones.GetNearbyZones(pos)
-    --This system isn't working.
-    -- local idx = GetZoneIndex(pos)
-    -- return zones.Map[idx] or {}
-    return zones.List
 end
 
 zones.Cache = {}
@@ -538,13 +530,8 @@ local function Intersect(line1, line2)
     local miny1, maxy1 = math.min(line1.y1, line1.y2) - .1, math.max(line1.y1, line1.y2) + .1
     local miny2, maxy2 = math.min(line2.y1, line2.y2) - .1, math.max(line2.y1, line2.y2) + .1
 
-    if (x >= minx1) and (x <= maxx1) and (x >= minx2) and (x <= maxx2) then
-        if (y >= miny1) and (y <= maxy1) and (y >= miny2) and (y <= maxy2) then 
-			return true 
-		end --debugoverlay.Sphere( Vector(x,y,LocalPlayer():GetPos().z), 3, FrameTime()+.01, Color(255,0,0), true)
-    end
-
-    return false
+	--debugoverlay.Sphere( Vector(x,y,LocalPlayer():GetPos().z), 3, FrameTime()+.01, Color(255,0,0), true)
+    return (x >= minx1) and (x <= maxx1) and (x >= minx2) and (x <= maxx2) and (y >= miny1) and (y <= maxy1) and (y >= miny2) and (y <= maxy2)
 end
 
 --True if point is within a polygon.
@@ -557,7 +544,6 @@ function zones.PointInPoly(point, poly)
     }
 
     local inside = false
-
     local line = {
         x1 = 0,
         y1 = 0,
@@ -566,7 +552,7 @@ function zones.PointInPoly(point, poly)
     }
 
     --Perform ray test
-    for k1, v in pairs(poly) do
+    for k1, v in ipairs(poly) do
         local v2 = poly[k1 + 1]
 
         if not v2 then

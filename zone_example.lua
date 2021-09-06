@@ -2,6 +2,7 @@
 -- Lots of formal documentation is at the bottom of this file.
 AddCSLuaFile("zones.lua")
 include("zones.lua")
+
 zones.RegisterClass("Arena Zone", Color(255, 0, 0))
 
 --Use this to set default properties. Only called on server.
@@ -16,12 +17,12 @@ end)
 -- Return your preferred width and height for the panel and the frame will size to it.
 hook.Add("ShowZoneOptions", "Arena Zone", function(zone, class, DPanel, zoneID, DFrame)
     if class == "Arena Zone" then
-        local w, h = 500, 400
         local mulbl = Label("Damage Multiplier:")
         mulbl:SetParent(DPanel)
         mulbl:SetPos(5, 5)
         mulbl:SetTextColor(color_black)
         mulbl:SizeToContents()
+	
         local mul = vgui.Create("DNumberWang", DPanel) --parent to the panel.
         mul:SetPos(5, mulbl:GetTall() + 10)
         mul:SetValue(zone.DmgMul)
@@ -44,8 +45,9 @@ if SERVER then
     util.AddNetworkString("arena_zone")
 
     net.Receive("arena_zone", function(len, ply)
+		if not ply:IsAdmin() then return end
+
         local id, new = net.ReadFloat(), net.ReadFloat()
-        if not ply:IsAdmin() then return end
         zones.List[id].DmgMul = new
         zones.Sync()
     end)

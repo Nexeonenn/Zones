@@ -181,12 +181,28 @@ function SWEP:PrimaryAttack()
         if not tr.HitWorld and IsValid(tr.Entity) and tr.Entity:GetClass() == "ent_zone_point" then
             self:SetCurrentPoint(tr.Entity)
         elseif IsValid(curr) then
+			local p = curr:GetPos()
+			local pos
+
+			if owner:KeyDown(IN_USE) and tr.HitNormal.z == 0 then
+				local left, right = self:GetWallFill(tr, owner)
+                left.z = p.z
+                right.z = p.z
+
+                if left:DistToSqr(tr.HitPos) < right:DistToSqr(tr.HitPos) then
+                    pos = left
+                else
+                    pos = right
+                end
+			else
+				tr.HitPos.z = p.z
+				pos = tr.HitPos
+			end
+
             local id, areanum = curr:GetZoneID(), curr:GetAreaNumber()
             local next = curr:GetNext()
             local new = ents.Create("ent_zone_point")
-            local p = curr:GetPos()
-            tr.HitPos.z = p.z
-            new:SetPos(tr.HitPos)
+            new:SetPos(pos)
             curr:SetNext(new)
             -- self:GetCurrentPoint():DeleteOnRemove(new)
             new.LastPoint = self:GetCurrentPoint()
@@ -228,7 +244,15 @@ function SWEP:SecondaryAttack()
             local id = point:GetZoneID()
 
             if id ~= -1 then
-                if #zones.List[id].points > 1 then
+				if (!zones.List[id]) then
+					id = select(2, owner:GetCurrentZone())
+
+					if (!id or id == -1) then
+						return false
+					end
+				end
+
+                if zones.List[id] and #zones.List[id].points > 1 then
                     id = select(2, zones.Split(id, point:GetAreaNumber()))
                 end
 
