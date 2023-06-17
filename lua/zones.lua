@@ -205,23 +205,28 @@ local function Ceil(x, to)
     return math.ceil(x / to) * to
 end
 
-function zones.CreateZoneMapping()
-    zones.Map = {}
+do
+	local zoneVector = Vector(0, 0, 0)
 
-    for _, zone in pairs(zones.List) do
-        local mins = zone.bounds.mins
-        local maxs = zone.bounds.maxs
+	function zones.CreateZoneMapping()
+		zones.Map = {}
 
-        for x = Floor(mins.x, chunkSize), Ceil(maxs.x + 1, chunkSize), chunkSize do
-            for y = Floor(mins.y, chunkSize), Ceil(maxs.y + 1, chunkSize), chunkSize do
-                for z = Floor(mins.z, chunkSize), Ceil(maxs.z + 1, chunkSize), chunkSize do
-                    local idx = GetZoneIndex(Vector(x, y, z))
-                    zones.Map[idx] = zones.Map[idx] or {}
-                    table.insert(zones.Map[idx], zone)
-                end
-            end
-        end
-    end
+		for _, zone in pairs(zones.List) do
+			local mins = zone.bounds.mins
+			local maxs = zone.bounds.maxs
+
+			for x = Floor(mins.x, chunkSize), Ceil(maxs.x + 1, chunkSize), chunkSize do
+				for y = Floor(mins.y, chunkSize), Ceil(maxs.y + 1, chunkSize), chunkSize do
+					for z = Floor(mins.z, chunkSize), Ceil(maxs.z + 1, chunkSize), chunkSize do
+						zoneVector.x, zoneVector.y, zoneVector.z = x, y, z
+						local idx = GetZoneIndex(zoneVector)
+						zones.Map[idx] = zones.Map[idx] or {}
+						table.insert(zones.Map[idx], zone)
+					end
+				end
+			end
+		end
+	end
 end
 
 zones.Cache = {}
@@ -280,6 +285,8 @@ if SERVER then
 		end
     end
 
+	local vectorUp2 = Vector(0, 0, 2)
+
     function zones.CreateZoneFromPoint(ent)
         local zone = {
             points = {{}}, --only 1 area when creating a new zone.
@@ -291,7 +298,7 @@ if SERVER then
         local id = table.maxn(zones.List) + 1
         local cur = ent
         repeat
-            local pos = cur:GetPos() - Vector(0, 0, 2)
+            local pos = cur:GetPos() - vectorUp2
             zone.points[1][#zone.points[1] + 1] = pos
             cur:SetZoneID(id)
             cur = cur:GetNext()
@@ -351,12 +358,12 @@ if SERVER then
                     local next = ents.Create("ent_zone_point")
 
                     if IsValid(curr) then
-                        next:SetPos(point + Vector(0, 0, 1))
+                        next:SetPos(point + vector_up)
                         curr:SetNext(next)
                         -- curr:DeleteOnRemove(next)
                     else
                         first = next
-                        next:SetPos(point + Vector(0, 0, 1))
+                        next:SetPos(point + vector_up)
                     end
 
                     next.LastPoint = curr

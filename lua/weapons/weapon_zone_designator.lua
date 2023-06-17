@@ -89,12 +89,13 @@ end
 function SWEP:Holster()
     if SERVER then
         local none = true
+		local owner = self:GetOwner()
 
         for _, ply in ipairs(player.GetHumans()) do
-            if ply == self:GetOwner() then continue end
+            if ply == owner then continue end
             local wep = ply:GetActiveWeapon()
 
-            if IsValid(wep) and wep:GetClass() == "weapon_zone_designator" then
+            if wep and wep:IsValid() and wep:GetClass() == "weapon_zone_designator" then
                 none = nil
                 break
             end
@@ -112,17 +113,21 @@ function SWEP:Holster()
     end
 end
 
-function SWEP:DrawHUD()
-    local z, id = LocalPlayer():GetCurrentZone(GetConVarNumber("zone_filter") == 1 and self:GetZoneClass() or nil)
-    z = z and z.class .. "(# " .. id .. ")" or "NONE"
+if CLIENT then
+	function SWEP:DrawHUD()
+		local z, id = LocalPlayer():GetCurrentZone(GetConVarNumber("zone_filter") == 1 and self:GetZoneClass() or nil)
+		z = z and z.class .. "(# " .. id .. ")" or "NONE"
 
-    surface.SetFont("DermaLarge")
-    local w = math.max(360, surface.GetTextSize("Current Zone: " .. z) + 40)
+		surface.SetFont("DermaLarge")
+		local w = math.max(360, surface.GetTextSize("Current Zone: " .. z) + 40)
 
-    draw.RoundedBox(8, ScrW() / 2 - w / 2, ScrH() - 160, w, 100, Color(0, 0, 0, 150))
-    draw.SimpleText("Current Zone: " .. z, "DermaLarge", ScrW() / 2, ScrH() - 130, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    draw.SimpleText("Hold " .. input.LookupBinding("+reload"):upper() .. " to change modes", "DermaLarge", ScrW() / 2, ScrH() - 90, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.RoundedBox(8, ScrW() / 2 - w / 2, ScrH() - 160, w, 100, Color(0, 0, 0, 150))
+		draw.SimpleText("Current Zone: " .. z, "DermaLarge", ScrW() / 2, ScrH() - 130, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Hold " .. input.LookupBinding("+reload"):upper() .. " to change modes", "DermaLarge", ScrW() / 2, ScrH() - 90, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	end
 end
+
+local vector_up2 = Vector(0, 0, 2)
 
 function SWEP:PrimaryAttack()
     local owner = self:GetOwner()
@@ -217,7 +222,7 @@ function SWEP:PrimaryAttack()
             local n = new
             local pts = {}
             repeat
-                pts[#pts + 1] = n:GetPos() - Vector(0, 0, 2)
+                pts[#pts + 1] = n:GetPos() - vector_up2
                 n = n:GetNext()
             until (n == new)
             zones.List[id].points[areanum] = pts
@@ -341,7 +346,7 @@ function SWEP:SecondaryAttack()
                 local n = next
                 local pts = {}
                 repeat
-                    pts[#pts + 1] = n:GetPos() - Vector(0, 0, 2)
+                    pts[#pts + 1] = n:GetPos() - vector_up2
                     n = n:GetNext()
                 until (n == next)
                 zones.List[id].points[areanum] = pts
@@ -375,6 +380,9 @@ function SWEP:Reload()
     input.SetCursorPos(mx, my)
     self:OpenMenu()
 end
+
+local vector2000 = Vector(0, 0, 2000)
+local vector2000min = Vector(0, 0, -2000)
 
 --mode == 1
 function SWEP:PlacePoint()
@@ -413,13 +421,13 @@ function SWEP:PlacePoint()
             else
                 local pos = util.TraceLine({
                     start = left,
-                    endpos = left + Vector(0, 0, -2000),
+                    endpos = left + vector2000min,
                     filter = owner
                 }).HitPos
 
                 local ceil = util.TraceLine({
                     start = pos,
-                    endpos = pos + Vector(0, 0, 2000),
+                    endpos = pos + vector2000,
                     filter = owner
                 })
 
@@ -430,7 +438,7 @@ function SWEP:PlacePoint()
                 end
 
                 local next = ents.Create("ent_zone_point")
-                next:SetPos(pos - Vector(0, 0, 1))
+                next:SetPos(pos - vector_up)
                 next.LastPoint = curr
                 self:SetCurrentPoint(next)
                 next:SetTall(self:GetTall())
@@ -448,7 +456,7 @@ function SWEP:PlacePoint()
                 next:SetPos(tr.HitPos)
                 curr:SetNext(next)
             else
-                next:SetPos(tr.HitPos + Vector(0, 0, 1))
+                next:SetPos(tr.HitPos + vector_up)
             end
 
             next.LastPoint = curr
@@ -487,8 +495,7 @@ end
 
 function SWEP:GetWallFill(tr, owner)
     local hitpos, norm = tr.HitPos, tr.HitNormal
-    local up = Vector(0, 0, 1)
-    local left = norm:Cross(up)
+    local left = norm:Cross(vector_up)
     local right = -left
     local curleft, curright = hitpos + norm, hitpos + norm
 
@@ -544,7 +551,7 @@ function SWEP:MergeZones()
 
     if tr.HitWorld then
         self:SetCurrentPoint(NULL)
-    elseif IsValid(tr.Entity) and tr.Entity:GetClass() == "ent_zone_point" then
+    elseif tr.Entity:IsValid() and tr.Entity:GetClass() == "ent_zone_point" then
         local curr = self:GetCurrentPoint()
         local trent = tr.Entity
 
@@ -711,11 +718,10 @@ local modes = {
 local lmb, rmb = Material("gui/lmb.png", "unlitgeneric"), Material("gui/rmb.png", "unlitgeneric")
 
 function SWEP:DrawScreen(x, y, w, h)
-    local mode = self:GetMode()
-    local txt = modes[mode]
+    local txt = modes[self:GetMode()]
     draw.SimpleText(txt[1], "zones_screen", x + w / 4, -h / 5, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     draw.SimpleText(txt[2], "zones_screen", w + x - w / 4, -h / 5, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    surface.SetDrawColor(color_white)
+    surface.SetDrawColor(255, 255, 255, 255)
     surface.DrawRect(x + w / 2 - 1, y + h * .125, 2, h * .75)
     surface.SetMaterial(lmb)
     surface.DrawTexturedRect(x + w / 4 - 16, y + h * .55 - 16, 32, 32)
@@ -724,45 +730,50 @@ function SWEP:DrawScreen(x, y, w, h)
 end
 
 local function GetBoneOrientation(self, ent)
-    local owner = self:GetOwner()
     local bone, pos, ang
     bone = ent:LookupBone("Hand")
     if (not bone) then return end
-    pos, ang = Vector(0, 0, 0), Angle(0, 0, 0)
     local m = ent:GetBoneMatrix(bone)
 
     if (m) then
         pos, ang = m:GetTranslation(), m:GetAngles()
-    end
+    else
+		pos, ang = Vector(0, 0, 0), Angle(0, 0, 0)
+	end
 
-    if (IsValid(owner) and owner:IsPlayer() and ent == owner:GetViewModel() and self.ViewModelFlip) then
+	local owner = self:GetOwner()
+
+    if (owner:IsValid() and owner:IsPlayer() and ent == owner:GetViewModel() and self.ViewModelFlip) then
         ang.r = -ang.r -- Fixes mirrored models
     end
 
     return pos, ang
 end
 
-function SWEP:ViewModelDrawn()
-    local vm = self:GetOwner():GetViewModel()
-    if not IsValid(vm) then return end
-    local pos, ang = GetBoneOrientation(self, vm)
-    local offset = Vector(.08, -5.16, 3.43)
-    local offsetAng = Angle(180, 0, -46)
-    local size = 0.0159
-    local drawpos = pos + ang:Forward() * offset.x + ang:Right() * offset.y + ang:Up() * offset.z
-    ang:RotateAroundAxis(ang:Up(), offsetAng.y)
-    ang:RotateAroundAxis(ang:Right(), offsetAng.p)
-    ang:RotateAroundAxis(ang:Forward(), offsetAng.r)
-    cam.Start3D2D(drawpos, ang, size)
-		local x, y, w, h = -72, -72
-		local w, h = 2 * -x, 2 * -y
+do
+	local offset = Vector(.08, -5.16, 3.43)
+	local offsetAng = Angle(180, 0, -46)
+	local size = 0.0159
 
-		--Draw Background:
-		surface.SetDrawColor(200, 200, 200, 255)
-		surface.SetDrawColor(40, 40, 40, 255)
-		surface.DrawRect(x, y, w, h)
+	function SWEP:ViewModelDrawn()
+		local vm = self:GetOwner():GetViewModel()
+		if not vm:IsValid() then return end
+		local pos, ang = GetBoneOrientation(self, vm)
+		local drawpos = pos + ang:Forward() * offset.x + ang:Right() * offset.y + ang:Up() * offset.z
+		ang:RotateAroundAxis(ang:Up(), offsetAng.y)
+		ang:RotateAroundAxis(ang:Right(), offsetAng.p)
+		ang:RotateAroundAxis(ang:Forward(), offsetAng.r)
+		cam.Start3D2D(drawpos, ang, size)
+			local x, y, w, h = -72, -72
+			local w, h = 2 * -x, 2 * -y
 
-		--Draw foreground:
-		self:DrawScreen(x, y, w, h)
-    cam.End3D2D()
+			--Draw Background:
+			surface.SetDrawColor(200, 200, 200, 255)
+			surface.SetDrawColor(40, 40, 40, 255)
+			surface.DrawRect(x, y, w, h)
+
+			--Draw foreground:
+			self:DrawScreen(x, y, w, h)
+		cam.End3D2D()
+	end
 end
